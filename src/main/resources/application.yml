@@ -12,9 +12,28 @@ embabel:
   llm:
     default: anthropic
     roles:
+      # When OPENAI_API_KEY is provided, override balanced and fast
+      # roles via environment variables or the openai profile below.
+      # Default: Anthropic for all roles (single API key to get started).
       reasoning: anthropic
-      balanced: anthropic
-      fast: anthropic
+      balanced: ${EMBABEL_LLM_ROLE_BALANCED:anthropic}
+      fast: ${EMBABEL_LLM_ROLE_FAST:anthropic}
+
+---
+# OpenAI profile: activated automatically when OPENAI_API_KEY is set.
+# Override with: EMBABEL_LLM_ROLE_BALANCED=openai EMBABEL_LLM_ROLE_FAST=openai-mini
+# Or set SPRING_PROFILES_ACTIVE=openai explicitly.
+spring:
+  config:
+    activate:
+      on-profile: openai
+
+embabel:
+  llm:
+    roles:
+      reasoning: anthropic
+      balanced: openai
+      fast: openai-mini
 
 # Assessment output directory
 assessor:
