@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: alci-assessor
+
+embabel:
+  platform:
+    name: alci-assessor
+  agent:
+    scan:
+      packages:
+        - com.ailiteracy.assessor.agent
+  llm:
+    default: anthropic
+    roles:
+      reasoning: anthropic
+      balanced: anthropic
+      fast: anthropic
+
+# Assessment output directory
+assessor:
+  output-dir: ./assessments
+
+server:
+  port: 8080

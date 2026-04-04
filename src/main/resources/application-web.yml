@@ -1,0 +1,5 @@
+# Web profile: disable Spring Shell, enable web server
+spring:
+  shell:
+    interactive:
+      enabled: false
