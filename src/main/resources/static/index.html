@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<!--
+  ALCI Assessor Web Chat UI
+
+  This page drives the entire assessment conversation without a JavaScript framework.
+  Vanilla JS was chosen deliberately: no build step, no dependency vulnerabilities,
+  no mismatch between what the browser serves and what was compiled. The entire
+  interactive surface is three HTTP calls (POST /api/assess, GET /api/chat/stream,
+  POST /api/chat/respond) and one SSE connection.
+
+  The message protocol uses prefixes to distinguish message types:
+    QUESTION:  — agent is asking an open-ended question; enable the input field
+    SCALE:text|min|max — agent wants a numeric rating; show a number input
+    PROGRESS:  — informational status update; show dimmed
+    RESULT:    — final outcome; show with emphasis
+
+  The UI disables the input field between responses to prevent the user from
+  sending answers when the agent is not waiting for one. This mirrors the
+  synchronous turn-taking of the terminal shell interaction.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALCI Assessor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      background: #1a1a2e;
+      color: #e0e0ff;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    header .subtitle {
+      font-size: 0.8rem;
+      opacity: 0.65;
+      margin-left: auto;
+    }
+
+    /* ── Message area ────────────────────────────────────────────── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .bubble {
+      max-width: 72%;
+      padding: 0.65rem 1rem;
+      border-radius: 1rem;
+      line-height: 1.5;
+      font-size: 0.95rem;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    /* Agent messages sit on the left */
+    .agent { align-self: flex-start; }
+
+    .agent.question {
+      background: #fff;
+      border: 1px solid #d0d7e6;
+      color: #1a1a2e;
+      border-bottom-left-radius: 0.25rem;
+    }
+
+    .agent.progress {
+      background: transparent;
+      color: #6b7280;
+      font-style: italic;
+      font-size: 0.85rem;
+      padding: 0.25rem 0.5rem;
+      border: none;
+    }
+
+    .agent.result {
+      background: #eef7f0;
+      border: 1.5px solid #4caf77;
+      color: #155724;
+      font-weight: 500;
+      border-bottom-left-radius: 0.25rem;
+    }
+
+    /* User messages sit on the right */
+    .user {
+      align-self: flex-end;
+      background: #1a1a2e;
+      color: #e0e0ff;
+      border-bottom-right-radius: 0.25rem;
+    }
+
+    /* ── Scale widget ────────────────────────────────────────────── */
+    .scale-widget {
+      align-self: flex-start;
+      max-width: 72%;
+    }
+
+    .scale-statement {
+      background: #fff;
+      border: 1px solid #d0d7e6;
+      color: #1a1a2e;
+      padding: 0.65rem 1rem;
+      border-radius: 1rem 1rem 0 0;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+    }
+
+    .scale-controls {
+      background: #f8f9fb;
+      border: 1px solid #d0d7e6;
+      border-top: none;
+      padding: 0.6rem 1rem;
+      border-radius: 0 0 1rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .scale-controls label {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    .scale-controls input[type=number] {
+      width: 4rem;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid #c0c8d8;
+      border-radius: 0.4rem;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .scale-controls button {
+      padding: 0.3rem 0.8rem;
+      background: #1a1a2e;
+      color: #e0e0ff;
+      border: none;
+      border-radius: 0.4rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .scale-controls button:hover { background: #2d2d4e; }
+    .scale-controls button:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    /* ── Input bar ───────────────────────────────────────────────── */
+    #input-bar {
+      flex-shrink: 0;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border-top: 1px solid #dde2ec;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    #user-input {
+      flex: 1;
+      padding: 0.6rem 0.9rem;
+      border: 1px solid #c0c8d8;
+      border-radius: 1.5rem;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    #user-input:focus { border-color: #1a1a2e; }
+    #user-input:disabled { background: #f3f4f6; color: #9ca3af; }
+
+    #send-btn {
+      padding: 0.6rem 1.2rem;
+      background: #1a1a2e;
+      color: #e0e0ff;
+      border: none;
+      border-radius: 1.5rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #send-btn:hover { background: #2d2d4e; }
+    #send-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    /* ── Status indicator ────────────────────────────────────────── */
+    #status {
+      font-size: 0.75rem;
+      color: #6b7280;
+      padding: 0 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ALCI Assessor</h1>
+  <span class="subtitle">AI Literacy Collaboration Index</span>
+</header>
+
+<div id="messages"></div>
+
+<div id="input-bar">
+  <span id="status">Starting session…</span>
+  <input
+    type="text"
+    id="user-input"
+    placeholder="Type your response and press Enter or Send"
+    disabled
+    autocomplete="off"
+  />
+  <button id="send-btn" disabled>Send</button>
+</div>
+
+<script>
+  // -- Helpers ----------------------------------------------------------------
+
+  const messages = document.getElementById('messages');
+  const userInput = document.getElementById('user-input');
+  const sendBtn = document.getElementById('send-btn');
+  const statusEl = document.getElementById('status');
+
+  // Whether a SCALE widget is the pending interaction (vs. a text question).
+  // We track this to route the submit action correctly.
+  let awaitingScale = false;
+  let currentScaleMin = 1;
+  let currentScaleMax = 5;
+
+  function scrollBottom() {
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function setInputEnabled(enabled) {
+    userInput.disabled = !enabled;
+    sendBtn.disabled = !enabled;
+    if (enabled) {
+      userInput.focus();
+    }
+  }
+
+  function appendBubble(text, cssClasses) {
+    const div = document.createElement('div');
+    div.className = 'bubble ' + cssClasses;
+    div.textContent = text;
+    messages.appendChild(div);
+    scrollBottom();
+    return div;
+  }
+
+  // Adds a numeric scale widget directly to the message area.
+  // The submit button on the widget calls sendResponse() just like the main
+  // input bar, so the two paths share the same validation logic.
+  function appendScaleWidget(statement, min, max) {
+    awaitingScale = true;
+    currentScaleMin = min;
+    currentScaleMax = max;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'scale-widget';
+
+    const stmt = document.createElement('div');
+    stmt.className = 'scale-statement';
+    stmt.textContent = statement;
+
+    const controls = document.createElement('div');
+    controls.className = 'scale-controls';
+
+    const label = document.createElement('label');
+    label.textContent = `Rate ${min}–${max}:`;
+
+    const numInput = document.createElement('input');
+    numInput.type = 'number';
+    numInput.min = min;
+    numInput.max = max;
+    numInput.placeholder = `${min}–${max}`;
+    numInput.id = 'scale-input';
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Submit';
+    btn.onclick = () => {
+      const val = parseInt(numInput.value, 10);
+      if (isNaN(val) || val < min || val > max) {
+        numInput.style.borderColor = '#e55';
+        return;
+      }
+      // Disable the widget after submission — one response per question.
+      btn.disabled = true;
+      numInput.disabled = true;
+      sendResponse(String(val));
+    };
+
+    // Allow pressing Enter in the number field to submit.
+    numInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btn.click();
+    });
+
+    controls.appendChild(label);
+    controls.appendChild(numInput);
+    controls.appendChild(btn);
+    wrapper.appendChild(stmt);
+    wrapper.appendChild(controls);
+    messages.appendChild(wrapper);
+    scrollBottom();
+    numInput.focus();
+  }
+
+  // -- Response submission ----------------------------------------------------
+
+  async function sendResponse(text) {
+    if (!text || !text.trim()) return;
+
+    // Echo the user's response as a right-aligned bubble.
+    appendBubble(text.trim(), 'bubble user');
+
+    // Disable input until the agent asks the next question.
+    setInputEnabled(false);
+    awaitingScale = false;
+    statusEl.textContent = 'Waiting for agent…';
+
+    try {
+      await fetch('/api/chat/respond', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: text.trim() }),
+      });
+    } catch (err) {
+      appendBubble('Network error: ' + err.message, 'bubble agent result');
+    }
+  }
+
+  // -- Main input bar wiring --------------------------------------------------
+
+  sendBtn.addEventListener('click', () => {
+    const val = userInput.value.trim();
+    if (!val) return;
+    userInput.value = '';
+    sendResponse(val);
+  });
+
+  userInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendBtn.click();
+  });
+
+  // -- SSE stream -------------------------------------------------------------
+
+  function attachStream() {
+    const es = new EventSource('/api/chat/stream');
+
+    es.onmessage = (event) => {
+      const raw = event.data;
+
+      if (raw.startsWith('QUESTION:')) {
+        const text = raw.slice('QUESTION:'.length);
+        appendBubble(text, 'bubble agent question');
+        awaitingScale = false;
+        statusEl.textContent = 'Your turn';
+        setInputEnabled(true);
+
+      } else if (raw.startsWith('SCALE:')) {
+        // Format: SCALE:statement text|min|max
+        const body = raw.slice('SCALE:'.length);
+        const parts = body.split('|');
+        const statement = parts[0];
+        const min = parseInt(parts[1], 10) || 1;
+        const max = parseInt(parts[2], 10) || 5;
+        appendScaleWidget(statement, min, max);
+        statusEl.textContent = 'Enter a rating';
+        // The text input bar is kept disabled — the scale widget has its own submit.
+        setInputEnabled(false);
+
+      } else if (raw.startsWith('PROGRESS:')) {
+        const text = raw.slice('PROGRESS:'.length);
+        appendBubble(text, 'bubble agent progress');
+        statusEl.textContent = 'Thinking…';
+
+      } else if (raw.startsWith('RESULT:')) {
+        const text = raw.slice('RESULT:'.length);
+        appendBubble(text, 'bubble agent result');
+        if (text.includes('Assessment written')) {
+          statusEl.textContent = 'Assessment complete';
+          es.close();
+        } else {
+          statusEl.textContent = 'Result received';
+        }
+
+      } else {
+        // Unknown prefix — render as a plain agent message to avoid swallowing data.
+        appendBubble(raw, 'bubble agent question');
+      }
+    };
+
+    es.onerror = () => {
+      statusEl.textContent = 'Connection lost. Please reload.';
+      es.close();
+    };
+  }
+
+  // -- Session startup --------------------------------------------------------
+  // Open the SSE stream first, then start the assessment. This ordering ensures
+  // that the first messages from the agent (which arrive almost immediately) are
+  // captured before the client subscribes.
+  //
+  // teamName defaults to "web-session". A future enhancement could prompt for it,
+  // but for the current single-user deployment model it is sufficient.
+
+  (async function bootstrap() {
+    attachStream();
+
+    try {
+      const resp = await fetch('/api/assess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamName: 'web-session' }),
+      });
+      const data = await resp.json();
+      if (data.status === 'error') {
+        appendBubble('Failed to start: ' + (data.message || 'unknown error'), 'bubble agent result');
+        statusEl.textContent = 'Error';
+      } else {
+        statusEl.textContent = 'Session started';
+      }
+    } catch (err) {
+      appendBubble('Could not reach the server: ' + err.message, 'bubble agent result');
+      statusEl.textContent = 'Offline';
+    }
+  })();
+</script>
+</body>
+</html>
