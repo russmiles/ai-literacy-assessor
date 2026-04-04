@@ -10,11 +10,20 @@ level across three disciplines, and generates recommendations.
 ## Quick Start
 
 ```bash
-# CLI mode
+# CLI mode (Anthropic only — one API key to get started)
 docker run -it \
   -v /path/to/project:/repo \
   -v ./assessments:/assessments \
   -e ANTHROPIC_API_KEY=your-key \
+  alci-assessor
+
+# CLI mode (dual provider — cost optimised)
+docker run -it \
+  -v /path/to/project:/repo \
+  -v ./assessments:/assessments \
+  -e ANTHROPIC_API_KEY=your-anthropic-key \
+  -e OPENAI_API_KEY=your-openai-key \
+  -e SPRING_PROFILES_ACTIVE=openai \
   alci-assessor
 
 # Web mode
@@ -44,14 +53,52 @@ docker build -t alci-assessor .
 
 ## Configuration
 
-| Variable | Default | Description |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | required | Anthropic API key for LLM calls |
-| `SPRING_PROFILES_ACTIVE` | (shell) | Set to `web` to enable the chat UI |
-| `ASSESSOR_OUTPUT_DIR` | `./assessments` | Directory for assessment markdown output |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | Yes | — | Anthropic API key for reasoning-tier LLM calls |
+| `OPENAI_API_KEY` | No | — | OpenAI API key for balanced/fast-tier calls (cost optimisation) |
+| `SPRING_PROFILES_ACTIVE` | No | (shell) | Set to `web` for chat UI, `openai` for dual-provider mode, or `web,openai` for both |
+| `ASSESSOR_OUTPUT_DIR` | No | `./assessments` | Directory for assessment markdown output |
 
-Model role assignments (fast / balanced / reasoning) are configured in
-`src/main/resources/application.yml`.
+### LLM Provider Modes
+
+**Anthropic only (default)** — one API key, all roles use Claude:
+
+```bash
+docker run -it -e ANTHROPIC_API_KEY=your-key alci-assessor
+```
+
+**Dual provider (cost optimised)** — Claude for reasoning, OpenAI for
+balanced/fast phases. Roughly 40-60% cheaper per assessment:
+
+```bash
+docker run -it \
+  -e ANTHROPIC_API_KEY=your-anthropic-key \
+  -e OPENAI_API_KEY=your-openai-key \
+  -e SPRING_PROFILES_ACTIVE=openai \
+  alci-assessor
+```
+
+**Custom role overrides** — set model roles individually:
+
+```bash
+docker run -it \
+  -e ANTHROPIC_API_KEY=your-key \
+  -e EMBABEL_LLM_ROLE_BALANCED=openai \
+  -e EMBABEL_LLM_ROLE_FAST=openai-mini \
+  alci-assessor
+```
+
+### Model Routing
+
+| Role | Anthropic Only | Dual Provider | Used By |
+| ---- | -------------- | ------------- | ------- |
+| `reasoning` | Claude Sonnet 4 | Claude Sonnet 4 | Level assessment, recommendations |
+| `balanced` | Claude Sonnet 4 | GPT-4o | Document assembly, trajectory |
+| `fast` | Claude Sonnet 4 | GPT-4o-mini | Question generation |
+
+Of 10 agent actions, only 2 use the `reasoning` tier. 4 actions use
+no LLM at all (scanning, user I/O, questionnaire scoring, file writing).
 
 ## Architecture
 
