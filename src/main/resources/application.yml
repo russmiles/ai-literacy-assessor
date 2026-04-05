@@ -24,6 +24,10 @@ embabel:
   # startup. Use a Claude model since Anthropic is the only required key.
   models:
     default-llm: claude-sonnet-4-6
+    llms:
+      reasoning: claude-opus-4-6
+      balanced: claude-sonnet-4-6
+      fast: claude-haiku-4-5
   platform:
     name: alci-assessor
   agent:
