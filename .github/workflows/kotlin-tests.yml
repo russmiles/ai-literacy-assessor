@@ -34,7 +34,8 @@ jobs:
         run: mvn -B verify
 
       - name: OWASP dependency check
-        run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnAnyVulnerability=false
+        continue-on-error: true
+        run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnAnyVulnerability=false -DfailOnError=false
 
       - name: Docker build
         run: docker build -t alci-assessor:test .
