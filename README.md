@@ -2,8 +2,8 @@
 
 ![Kotlin Tests](https://github.com/russmiles/ai-literacy-assessor/actions/workflows/kotlin-tests.yml/badge.svg)
 ![Lint Markdown](https://github.com/russmiles/ai-literacy-assessor/actions/workflows/lint-markdown.yml/badge.svg)
-![Harness](https://img.shields.io/badge/harness-4%2F8%20enforced-yellow)
-![AI Literacy](https://img.shields.io/badge/AI%20Literacy-L3%20Practising-blue)
+![Harness](https://img.shields.io/badge/harness-8%2F8%20enforced-brightgreen)
+![AI Literacy](https://img.shields.io/badge/AI%20Literacy-L4%20Scaling-blue)
 
 An AI Literacy assessment chatbot built with the [Embabel Agent Framework](https://github.com/embabel/embabel-agent).
 
@@ -46,8 +46,8 @@ automatically and begins the assessment session.
 ## Build
 
 ```bash
-# Compile and test
-mvn test
+# Compile, test, and check coverage
+mvn verify
 
 # Build the fat JAR
 mvn package -DskipTests
@@ -129,13 +129,16 @@ ENFORCEMENT LOOPS
 PR Loop (every push/PR)
   deterministic:
     lint-markdown.yml -----> markdownlint-cli2 "**/*.md"
-    kotlin-tests.yml ------> mvn -B test
+    kotlin-tests.yml ------> mvn -B verify (tests + JaCoCo coverage check)
+    kotlin-tests.yml ------> OWASP dependency-check (advisory)
+    kotlin-tests.yml ------> docker build -t alci-assessor:test .
   agent:
     code-reviewer ---------> CUPID + LP review (Conventional Comments)
 
-Weekly Loop (Dependabot + GC rules)
+Weekly Loop (Dependabot + GC rules + mutation testing)
   deterministic:
     dependabot.yml --------> maven + github-actions updates
+    mutation-testing.yml --> mvn pitest:mutationCoverage (score tracking)
   agent:
     GC1 doc-freshness -----> README, CHANGELOG, HARNESS staleness check
     GC2 convention-drift --> CLAUDE.md vs actual code patterns
@@ -146,6 +149,7 @@ Quarterly Loop (manual)
   assessment ------------> /assess (ALCI self-assessment)
   harness-audit ---------> constraint drift check
   reflection-review -----> REFLECTION_LOG.md promotion
+  mutation-trends -------> compare quarterly PIT scores
   cost-review -----------> MODEL_ROUTING.md vs actual spend
 ```
 
@@ -154,8 +158,8 @@ Quarterly Loop (manual)
 | Metric | Count |
 | ------ | ----- |
 | Constraints | 8 |
-| Enforced (deterministic + agent) | 4 |
-| Unverified | 4 |
+| Enforced (deterministic + agent) | 8 |
+| Unverified | 0 |
 | GC rules | 5 |
 
 See [HARNESS.md](HARNESS.md) for the full constraint catalogue.

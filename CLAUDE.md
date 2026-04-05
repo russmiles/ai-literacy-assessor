@@ -82,6 +82,29 @@ Follow red-green-refactor strictly:
 Tests use JUnit 5, `@TempDir` for filesystem fixtures, and
 `FakeUserInteraction` for agent tests that need I/O stubbing.
 
+## Quarterly Operating Cadence
+
+Run these on a quarterly basis to keep the habitat healthy:
+
+1. **`/assess`** -- run a full AI literacy self-assessment. The assessor scans
+   the repo, asks clarifying questions, applies immediate fixes, recommends
+   workflow changes, captures a reflection, and updates the AI Literacy badge.
+
+2. **`/harness-audit`** -- verify that declared enforcement matches reality.
+   Check for drift, promote unverified constraints where tooling exists, update
+   the Status section in HARNESS.md.
+
+3. **Review REFLECTION_LOG.md** -- promote worthy entries to AGENTS.md.
+   Archive entries older than two quarters.
+
+4. **Check mutation testing trends** -- download the weekly mutation testing
+   artifacts and compare scores. Investigate any decline greater than 5
+   percentage points from the previous quarter.
+
+5. **Run `/harness-health`** -- generate a fresh observability snapshot in
+   `observability/snapshots/` using the current enforcement counts and test
+   results.
+
 ## Branch Discipline
 
 Never commit directly to `main`. Create a descriptive branch before any changes.
