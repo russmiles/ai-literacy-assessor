@@ -51,6 +51,20 @@ automatically and begins the assessment session.
 - Maven 3.9+
 - An Anthropic API key
 
+### Wrapper Script (Quickest Way)
+
+```bash
+export ANTHROPIC_API_KEY=your-key
+
+./run.sh                    # CLI mode
+./run.sh web                # Web mode → http://localhost:8080
+./run.sh openai             # CLI with dual-provider (needs OPENAI_API_KEY)
+./run.sh web openai         # Web with dual-provider
+./run.sh --help             # Show all options
+```
+
+The script validates prerequisites, builds the JAR, and starts the application.
+
 ### CLI Mode
 
 ```bash
