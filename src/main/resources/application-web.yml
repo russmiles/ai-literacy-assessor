@@ -1,5 +1,7 @@
 # Web profile: disable Spring Shell, enable web server
 spring:
+  main:
+    web-application-type: servlet
   shell:
     interactive:
       enabled: false
