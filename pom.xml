@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.5</version>
+        <version>3.5.12</version>
         <relativePath/>
     </parent>
 
@@ -45,6 +45,13 @@
         <dependency>
             <groupId>com.embabel.agent</groupId>
             <artifactId>embabel-agent-shell</artifactId>
+            <version>${embabel-agent.version}</version>
+        </dependency>
+
+        <!-- Embabel Anthropic provider (registers Claude models with the platform) -->
+        <dependency>
+            <groupId>com.embabel.agent</groupId>
+            <artifactId>embabel-agent-starter-anthropic</artifactId>
             <version>${embabel-agent.version}</version>
         </dependency>
 
