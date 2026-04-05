@@ -30,8 +30,14 @@ jobs:
           distribution: "temurin"
           cache: "maven"
 
-      - name: Run tests
-        run: mvn -B test
+      - name: Run tests and coverage check
+        run: mvn -B verify
+
+      - name: OWASP dependency check
+        run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnAnyVulnerability=false
+
+      - name: Docker build
+        run: docker build -t alci-assessor:test .
 
       - name: Upload test results
         if: always()
@@ -39,3 +45,10 @@ jobs:
         with:
           name: test-results
           path: target/surefire-reports/
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: coverage-report
+          path: target/site/jacoco/

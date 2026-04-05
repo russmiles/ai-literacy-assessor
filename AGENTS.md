@@ -51,6 +51,25 @@ should know. Entries are grouped by concern and updated as the team learns.
   discover action chains. This means adding a new assessment phase is just
   adding a new data class and a new `@Action` that consumes/produces it.
 
+## GOTCHAS
+
+- **embabel-version-coordination** -- The Embabel Agent Framework publishes
+  SNAPSHOT versions to `repo.embabel.com/artifactory`, not Maven Central. The
+  0.3.0 release is aspirational. Always verify actual available coordinates
+  before configuring pom.xml. The custom repository block is required in every
+  project that depends on Embabel SNAPSHOTs.
+
+- **jacoco-threshold-calibration** -- When adding JaCoCo, always run
+  `mvn verify` locally first and read the actual covered-ratio from the warning
+  message before setting the `<minimum>` threshold. Start at (actual − 0.05)
+  and raise incrementally. Setting the threshold above actual coverage blocks
+  the PR immediately.
+
+- **owasp-snapshot-false-positives** -- OWASP dependency-check may flag
+  Embabel SNAPSHOT transitive deps as vulnerabilities (unresolved CVEs in
+  snapshot builds). Use `failBuildOnAnyVulnerability=false` until the
+  dependency tree stabilises on release versions.
+
 ## TEST_STRATEGY
 
 - **TDD with JUnit 5** -- all production code is written test-first. The test
