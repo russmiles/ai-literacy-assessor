@@ -16,7 +16,7 @@ embabel:
   # models list. Embabel's ConfigurableModelProvider validates this at
   # startup. Use a Claude model since Anthropic is the only required key.
   models:
-    default-llm: claude-3-7-sonnet-latest
+    default-llm: claude-sonnet-4-6
   platform:
     name: alci-assessor
   agent:
