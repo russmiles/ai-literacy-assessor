@@ -1,6 +1,8 @@
 spring:
   application:
     name: alci-assessor
+  main:
+    web-application-type: none
   ai:
     ollama:
       # Provide a default so the Embabel OllamaModels bean can
