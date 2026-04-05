@@ -3,6 +3,11 @@ spring:
     name: alci-assessor
   main:
     web-application-type: none
+  shell:
+    interactive:
+      enabled: true
+    noninteractive:
+      enabled: false
   ai:
     ollama:
       # Provide a default so the Embabel OllamaModels bean can
