@@ -43,13 +43,67 @@ docker run -p 8080:8080 \
 Open `http://localhost:8080` after the container starts. The chat UI loads
 automatically and begins the assessment session.
 
+## Running Locally (without Docker)
+
+### Prerequisites
+
+- JDK 21 ([Eclipse Temurin](https://adoptium.net/) recommended)
+- Maven 3.9+
+- An Anthropic API key
+
+### CLI Mode
+
+```bash
+# Build the application
+mvn package -DskipTests
+
+# Run in CLI mode (interactive terminal)
+ANTHROPIC_API_KEY=your-key java -jar target/alci-assessor-0.1.0-SNAPSHOT.jar
+
+# Assess a local project
+ANTHROPIC_API_KEY=your-key java -jar target/alci-assessor-0.1.0-SNAPSHOT.jar \
+  --assessor.output-dir=./assessments
+```
+
+The Spring Shell prompt appears. Type `assess --team "My Team" --repo /path/to/project` to start an assessment.
+
+### Web Mode
+
+```bash
+# Run with the web profile — chat UI on http://localhost:8080
+ANTHROPIC_API_KEY=your-key \
+  SPRING_PROFILES_ACTIVE=web \
+  java -jar target/alci-assessor-0.1.0-SNAPSHOT.jar
+```
+
+Open `http://localhost:8080` in your browser.
+
+### Dual Provider (Cost Optimised)
+
+```bash
+ANTHROPIC_API_KEY=your-anthropic-key \
+  OPENAI_API_KEY=your-openai-key \
+  SPRING_PROFILES_ACTIVE=openai \
+  java -jar target/alci-assessor-0.1.0-SNAPSHOT.jar
+```
+
+### Running from Source (Development)
+
+```bash
+# Run directly with Maven (no JAR build needed)
+ANTHROPIC_API_KEY=your-key mvn spring-boot:run
+
+# Run in web mode from source
+ANTHROPIC_API_KEY=your-key mvn spring-boot:run -Dspring-boot.run.profiles=web
+```
+
 ## Build
 
 ```bash
-# Compile, test, and check coverage
+# Compile and run tests
 mvn verify
 
-# Build the fat JAR
+# Build the fat JAR (skip tests for speed)
 mvn package -DskipTests
 
 # Build the Docker image
