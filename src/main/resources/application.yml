@@ -1,8 +1,22 @@
 spring:
   application:
     name: alci-assessor
+  ai:
+    ollama:
+      # Provide a default so the Embabel OllamaModels bean can
+      # initialise even when no local Ollama server is running.
+      # The application uses Anthropic/OpenAI — not Ollama — but
+      # Embabel's auto-configuration requires this placeholder to
+      # resolve. Set to a real URL if you want local model support.
+      base-url: http://localhost:11434
+      enabled: false
 
 embabel:
+  # The default LLM must be a specific model name from the available
+  # models list. Embabel's ConfigurableModelProvider validates this at
+  # startup. Use a Claude model since Anthropic is the only required key.
+  models:
+    default-llm: claude-3-7-sonnet-latest
   platform:
     name: alci-assessor
   agent:
@@ -10,7 +24,6 @@ embabel:
       packages:
         - com.ailiteracy.assessor.agent
   llm:
-    default: anthropic
     roles:
       # When OPENAI_API_KEY is provided, override balanced and fast
       # roles via environment variables or the openai profile below.
