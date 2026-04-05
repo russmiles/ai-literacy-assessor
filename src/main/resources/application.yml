@@ -31,6 +31,10 @@ embabel:
   platform:
     name: alci-assessor
   agent:
+    platform:
+      llm-operations:
+        prompts:
+          default-timeout: 180s
     scan:
       packages:
         - com.ailiteracy.assessor.agent
