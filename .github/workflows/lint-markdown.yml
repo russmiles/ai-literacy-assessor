@@ -1,0 +1,24 @@
+# Enforces consistent markdown formatting across the repository.
+# Runs on every push and pull request that modifies markdown files.
+name: Lint Markdown
+
+on:
+  push:
+    paths:
+      - "**/*.md"
+  pull_request:
+    paths:
+      - "**/*.md"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Lint markdown
+        run: npx markdownlint-cli2 "**/*.md"
