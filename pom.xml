@@ -20,7 +20,7 @@
     <description>AI Literacy assessment chatbot built with Embabel Agent Framework</description>
 
     <properties>
-        <kotlin.version>2.1.20</kotlin.version>
+        <kotlin.version>2.3.20</kotlin.version>
         <embabel-agent.version>0.1.0-SNAPSHOT</embabel-agent.version>
         <java.version>21</java.version>
     </properties>
